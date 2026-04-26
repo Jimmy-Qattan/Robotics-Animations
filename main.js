@@ -698,6 +698,8 @@ class ANIMATION {
 
     const servoCount = ANIMATION.#currentServoPositions.length;
 
+    this.#ACTIVECUT = [];
+
     ANIMATION.#ACTIVE.forEach((animationFrame) => {
       let newFrame = animationFrame.createClone;
       newFrame.setNumOfServos(servoCount);
