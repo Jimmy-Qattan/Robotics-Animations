@@ -37,7 +37,16 @@ class ANIMATION {
   static #animationParalysis = false;
   static #animationsAllowed = true;
 
-  static ALL = [];
+  static maxTime = 100000;
+  static minTime = 25;
+  static errorTimeReturn = 5000; // For input type errors on time
+
+  static #ALL = [];
+  static #ACTIVE = [];
+  static #ACTIVECUT = [];
+  static #currentServoPositions;
+
+  static servoPositionsInitialized = false;
 
   static HELP(color = "green", color2 = "red", color3 = "yellow") {
     ANIMATION.printColor("INSTRUCTIONS FOR SETTING UP ANIMATION FRAME:", color);
@@ -78,7 +87,7 @@ class ANIMATION {
       color,
     );
     ANIMATION.printColor(
-      "WARNING: Time Must be Between 25 and 1000000 milliseconds",
+      `WARNING: Time Must be Between ${ANIMATION.minTime} and ${ANIMATION.maxTime} milliseconds`,
       color2,
     );
     ANIMATION.printColor(
@@ -131,7 +140,7 @@ class ANIMATION {
     let status = true;
 
     x.forEach((value) => {
-      if (value < 0 || value > 180) {
+      if (value < 0 || value > 180 || !Number.isFinite(value)) {
         status = false;
       }
     });
@@ -143,13 +152,13 @@ class ANIMATION {
     if (!Array.isArray(arr) || arr.length == 0) return false;
 
     arr.forEach((value) => {
-      if (!Number.isInteger(value)) {
+      if (!Number.isFinite(value)) {
         return false;
       }
     });
 
     for (let i = 0; i < arr.length; i++) {
-      if (!Number.isInteger(arr[i])) {
+      if (!Number.isFinite(arr[i])) {
         return false;
       }
     }
@@ -297,7 +306,7 @@ class ANIMATION {
     }
 
     // Mainly used to take the number of servos user specified and set the array lengths of ini and fin servo positions and rotor speed variables
-    if (!Number.isInteger(this.getNumOfServos)) {
+    if (!Number.isFinite(this.getNumOfServos)) {
       this.#numOfServos = this.getInitialDestination.length;
 
       ANIMATION.printError(
@@ -323,7 +332,7 @@ class ANIMATION {
     }
 
     if (this.initialized == false) {
-      ANIMATION.ALL.push(this);
+      ANIMATION.#ALL.push(this);
     }
 
     this.#stepSizes = stepSizeArray;
@@ -399,11 +408,38 @@ class ANIMATION {
 
   setTime(time) {
     // SETTER FOR TIME
-    if (!Number.isInteger(time) || Number(time) < 25 || Number(time) > 1000000) {
-      ANIMATION.printError(this.getName, "Time must be a number between 25 and 1000000");
+    if (!Number.isFinite(time)) {
+      ANIMATION.printError(
+        this.getName,
+        `Time must be a number between ${ANIMATION.minTime} and ${ANIMATION.maxTime}`,
+      );
       return;
     }
-    this.#time = Number(time);
+
+    this.#time = this.clampTimeReturn(Number(time));
+
+    ANIMATION.printColor(
+      `${this.getName}: Time successfully set to ${this.getTime} milliseconds`,
+      "green",
+    );
+  }
+
+  clampTimeReturn(time) {
+    if (!Number.isFinite(time)) {
+      ANIMATION.printError(
+        "ANIMATION",
+        `Time-- ${time}-- must be a finite, numeric value`,
+      );
+      return this.getTime ?? ANIMATION.errorTimeReturn;
+    }
+
+    if (time > ANIMATION.maxTime) {
+      return ANIMATION.maxTime;
+    } else if (time < ANIMATION.minTime) {
+      return ANIMATION.minTime;
+    } else {
+      return time;
+    }
   }
 
   get getTime() {
@@ -412,7 +448,7 @@ class ANIMATION {
 
   setName(name) {
     // SETTER FOR NAME
-    if (!(name instanceof String) || String(name).length < 1) return;
+    if (typeof name != "string" || String(name).length < 1) return;
     this.#name = String(name);
   }
 
@@ -477,7 +513,7 @@ class ANIMATION {
 
   setNumOfServos(val) {
     if (
-      !Number.isInteger(val) ||
+      !Number.isFinite(val) ||
       val < 0 ||
       val == this.getNumOfServos ||
       !this.initialized
@@ -510,7 +546,7 @@ class ANIMATION {
   }
 
   setDefaultServoValue(val) {
-    if (!Number.isInteger(val) || Number(val) < 0 || Number(val) > 180) {
+    if (!Number.isFinite(val) || Number(val) < 0 || Number(val) > 180) {
       throw new Error("Default Servo Value must be a Number between 0 and 180");
       return;
     }
@@ -521,13 +557,17 @@ class ANIMATION {
   // FOR MOTION DATA
 
   static initArray(num, val = 90) {
-    if (!Number.isInteger(num) || !Number.isInteger(val)) return;
+    if (!Number.isFinite(num) || !Number.isFinite(val)) return;
     let newArr = [];
     for (let i = 0; i < num; i++) {
       newArr.push(val);
     }
 
     return newArr;
+  }
+
+  get isPaused() {
+    return this.#isPause;
   }
 
   get determineStepSize() {
@@ -543,8 +583,141 @@ class ANIMATION {
   }
 
   setStepSizes(arr) {
-    if (!Array.isArray(arr) || arr.length != this.getNumOfServos || !this.initialized || ANIMATION.arrayAllNums(arr)) return;
+    if (
+      !Array.isArray(arr) ||
+      arr.length != this.getNumOfServos ||
+      !this.initialized ||
+      ANIMATION.arrayAllNums(arr)
+    )
+      return;
     this.#stepSizes = arr;
+  }
+
+  // TO CREATE OUR FUNCTIONS TO MOVE!
+
+  static disableAnimations() {
+    if (ANIMATION.#animationsAllowed) {
+      ANIMATION.#animationsAllowed = false;
+      ANIMATION.printColor("Animations Turned Off", "green");
+    } else {
+      ANIMATION.printColor("Animations Are Already Off", "red");
+    }
+  }
+
+  static enableAnimations() {
+    if (!ANIMATION.#animationsAllowed) {
+      ANIMATION.#animationsAllowed = true;
+      ANIMATION.printColor("Animations Turned On", "green");
+    } else {
+      ANIMATION.printColor("Animations Are Already On", "red");
+    }
+  }
+
+  static get isAnimationsOn() {
+    return ANIMATION.#animationsAllowed;
+  }
+
+  static toggleAnimations() {
+    this.#animationsAllowed = !this.#animationsAllowed;
+    if (ANIMATION.isAnimationsOn) {
+      ANIMATION.printColor("Animations Turned On", "green");
+    } else {
+      ANIMATION.printColor("Animations Turned Off", "red");
+    }
+  }
+
+  static initializeServoPositions(positionArray) {
+    // Dont regard the size of array for now.
+
+    if (positionArray instanceof Array && positionArray.length == 0) {
+      ANIMATION.printError(
+        "ANIMATION",
+        "Argument must be an array with length of 1 or greater",
+        "red",
+      );
+      return;
+    }
+
+    if (ANIMATION.arraysNoNegatives(positionArray)) {
+      ANIMATION.#currentServoPositions = positionArray;
+      ANIMATION.servoPositionsInitialized = true;
+      ANIMATION.printColor("Servo Positions Successfully Initialized", "green");
+    } else {
+      ANIMATION.printError(
+        "ANIMATION",
+        "Values of array must be numbers between 0 and 180",
+        "red",
+      );
+    }
+  }
+
+  pushToActive() {
+    if (!this.initialized) return;
+
+    if (!ANIMATION.#ACTIVE.includes(this)) {
+      ANIMATION.#ACTIVE.push(this);
+    } else {
+      ANIMATION.printError(
+        this.getName,
+        "This Frame is already In Active Region",
+        "yellow",
+      );
+    }
+  }
+
+  get createClone() {
+    let clone = new ANIMATION(
+      this.getName,
+      this.getInitialDestination,
+      this.getFinalDestination,
+      this.getTime,
+      this.getInterpolationType,
+      this.getNumOfServos,
+      this.isPaused,
+    );
+    return clone;
+  }
+
+  static initializeActiveAnimationServoCounts() {
+    // Append new animationFrame's to ANIMATION.#ACTIVECUT
+    if (!ANIMATION.servoPositionsInitialized) {
+      ANIMATION.printColor(
+        "Servo Positions Must be Initialized before running ANIMATION.initializeActiveAnimationServoCounts()",
+        "red",
+      );
+      return;
+    }
+
+    if (!ANIMATION.#ACTIVE.length) {
+      ANIMATION.printColor(
+        "You must have some active animation frames before running ANIMATION.initializeActiveAnimationServoCounts()",
+        "red",
+      );
+      return;
+    }
+
+    const servoCount = ANIMATION.#currentServoPositions.length;
+
+    ANIMATION.#ACTIVE.forEach((animationFrame) => {
+      let newFrame = animationFrame.createClone;
+      newFrame.setNumOfServos(servoCount);
+
+      ANIMATION.#ACTIVECUT.push(newFrame);
+    });
+  }
+
+  static isReady() {
+    if (
+      ANIMATION.#animationParalysis ||
+      !ANIMATION.#animationsAllowed ||
+      !ANIMATION.#ACTIVECUT.length
+    )
+      return false;
+    return true;
+  }
+
+  async runAnimation() {
+    const movePromise = new Promise((resolve, reject) => {});
   }
 }
 
