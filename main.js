@@ -715,6 +715,8 @@ class ANIMATION {
       !ANIMATION.#ACTIVECUT.length
     )
       return false;
+
+    this.printColor("Animations Booting Up!!...", "green");
     return true;
   }
 
