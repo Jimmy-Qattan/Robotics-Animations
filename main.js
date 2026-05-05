@@ -1192,15 +1192,5 @@ ANIMATION.initializeServoPositions([90, 90, 90, 90]);
 
 ANIMATION.setTimeAll([k, j], 3000);
 
-function setRotationsOf3DFiguresFromDegrees(rotations) {
-  const allRotatableFigures = document.querySelectorAll("[rotation-listener]");
-
-  const newDegMapping = rotations.map((value) => {
-    return ANIMATION.degreesToRadians(value) - Math.PI / 2;
-  });
-
-  allRotatableFigures.forEach((figure, index) => {
-    const axisOfRot = figure.getAttribute("rotation-listener").axis;
-    figure.object3D.rotation[axisOfRot] = newDegMapping[index];
-  });
-}
+k.runToPosition([10, 10, 10, 10]);
+k.runToRandomPosition();
