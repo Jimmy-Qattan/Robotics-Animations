@@ -1192,5 +1192,95 @@ ANIMATION.initializeServoPositions([90, 90, 90, 90]);
 
 ANIMATION.setTimeAll([k, j], 3000);
 
-k.runToPosition([10, 10, 10, 10]);
-k.runToRandomPosition();
+//k.runToPosition([10, 10, 10, 10]);
+//k.runToRandomPosition();
+
+function setRotationsOf3DFiguresFromDegrees(rotations) {
+  const allRotatableFigures = document.querySelectorAll("[rotation-listener]");
+
+  const newDegMapping = rotations.map((value) => {
+    return ANIMATION.degreesToRadians(value) - Math.PI / 2;
+  });
+
+  allRotatableFigures.forEach((figure, index) => {
+    const axisOfRot = figure.getAttribute("rotation-listener").axis;
+    figure.object3D.rotation[axisOfRot] = newDegMapping[index];
+  });
+}
+
+const generateButton = document.querySelector("[generateInputs]");
+const generateDiv = document.getElementById("animation");
+
+/**
+ * z-index: 9999;
+        position: fixed;
+        top: 10%;
+        right: 10%;
+        width: 7%;
+ */
+
+function removeAllChildrenFromDiv(div) {
+  if (!(div instanceof HTMLElement))
+    Array.from(div.children).forEach((child) => {
+      div.removeChild(child);
+    });
+}
+
+function getNumOfChildrenInDiv(div) {
+  if (!(div instanceof HTMLElement)) return;
+  return Array.from(div.children).length;
+}
+
+function trimDivToNumOfServos(div, num) {
+  if (!(div instanceof HTMLElement) || !Number.isInteger(num) || num < 0)
+    return;
+
+  const numOfServos = num;
+  const numOfHTMLElements = getNumOfChildrenInDiv(div);
+
+  console.log(
+    `There are ${numOfHTMLElements} HTML ELEMENTS and ${numOfServos} Servos`,
+  );
+
+  if (numOfHTMLElements == numOfServos) {
+    return;
+  } else if (numOfHTMLElements > numOfServos) {
+    const startIndex = numOfServos;
+    const endIndex = numOfHTMLElements;
+
+    for (let i = 0; i < endIndex; i++) {
+      if (!Array.from(div.children)[i]) continue;
+      div.removeChild(Array.from(div.children)[i]);
+    }
+  }
+}
+
+function addInput(div, index) {
+  if (!(div instanceof HTMLElement)) return;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = `Servo ${index + 1} Value (Between 0 and 180)`;
+  input.style.zIndex = "9999";
+  input.style.position = "fixed";
+  input.style.top = `${10 + 5 * index}%`;
+  input.style.right = "10%";
+  input.style.width = "7%";
+
+  const button = document.createElement("button");
+
+  button.textContent = "Enter";
+
+  div.appendChild(input);
+  input.appendChild(button);
+}
+
+generateButton.addEventListener("click", function () {
+  const numOfInputs = ANIMATION.getServoCount ?? 0;
+  if (!numOfInputs) return;
+
+  trimDivToNumOfServos(generateDiv, numOfInputs);
+
+  for (let i = 0; i < numOfInputs; i++) {
+    addInput(generateDiv, i);
+  }
+});
